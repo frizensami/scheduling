@@ -19,10 +19,10 @@ job3 = Job "3" 1 1 1
 job4 = Job "4" 2 3 3
 job5 = Job "5" 3 2 2
 
+-- Runs and prints jobs in SJF order (only considers jobs that arrived before current time)
 runSJF :: IO ()
 runSJF = do putStr "\n\n*********STARTING SJF*********\n" 
-            -- mapM_ print $ sjf [job1, job2, job3, job4, job5] 0
-            printSchedule schedule startTime
+            printSchedule schedule startTime -- Gets the output schedule from SJF
             putStrLn "\n------- CALCULATING STATS -------\n"
             totalTurnaround <- printAndGetTurnaround schedule startTime startTurnaround
             putStrLn $ "\nTotal turnaround: " ++ show totalTurnaround
@@ -43,15 +43,16 @@ sjf jobs curTime = jobToRun { remaining = remaining jobToRun - jobRunTiming} : s
 
 -- Return tuple of next job to run and rest of jobs (assumes always have >= 1 job to run at any time)
 sjfScheduleOneJob :: [Job] -> CurrentTime -> (Job, [Job])
-sjfScheduleOneJob jobs curTime = (nextJob, restJobs) where
-    validJobs = filter (\job -> arrival job <= curTime) jobs
-    nextJob  = minimumBy (comparing execution) validJobs
-    restJobs = [ x | x <- jobs, x /= nextJob ] 
+sjfScheduleOneJob jobs curTime = (nextJob, restJobs)
+     where
+        validJobs = filter (\job -> arrival job <= curTime) jobs
+        nextJob  = minimumBy (comparing execution) validJobs
+        restJobs = [ x | x <- jobs, x /= nextJob ] 
 
 
 -- PRINTING FUNCTIONS
 
-
+-- Printing times when each job was run and its status after each run
 printSchedule :: Schedule  -> CurrentTime -> IO()
 printSchedule [] curTime = putStr $ "Completion Time: " ++ show curTime ++ "\n"
 printSchedule schedule curTime = do putStr $ "Time: " ++ show curTime ++ " - job started execution, its state after execution is\n"
@@ -59,6 +60,7 @@ printSchedule schedule curTime = do putStr $ "Time: " ++ show curTime ++ " - job
                                     putStr "\n"
                                     printSchedule (tail schedule) (curTime + (execution . head) schedule)
 
+-- Won't work for SRTF in current form - adds the execution time of the job directly
 printAndGetTurnaround :: Schedule  -> CurrentTime -> Double -> IO Double
 printAndGetTurnaround [] curTime turnaround = do 
                                                 putStr $ "Completion Time: " ++ show curTime 
@@ -75,26 +77,3 @@ printAndGetTurnaround schedule curTime turnaround =
               jobRunTiming = execution jobToRun
               jobIsCompleted = remaining jobToRun == 0
               curTurnaround = curTime - arrival jobToRun + execution jobToRun
-
-
-
- 
-
-
-
-
--- Runs all jobs in SJF and prints output
-{- 
-sjf :: [Job] -> CurrentTime -> IO()
-sjf [] curtime = putStr $ "t = " ++ show curtime ++ "   (DONE)\n"
-sjf jobs curtime = do putStr $ "t = " ++ show curtime ++ "\n"
-                      print jobToRun
-                      putStr "\n"
-                      sjf   restJobs (curtime + jobRunTiming)
-    where 
-        cursched = sjfScheduleOneJob jobs
-        jobToRun = fst cursched
-        jobRunTiming = execution jobToRun
-        restJobs = snd cursched
--}
-
