@@ -9,7 +9,7 @@ type ArrivalTime = Double
 type ExecutionTime = Double
 type RemainingTime = Double
 type CurrentTime = Double
-data Job = Job { name :: String, arrival :: ArrivalTime, execution :: ExecutionTime, remaining :: RemainingTime } deriving (Show, Eq)
+data Job = Job { name :: String, arrivalTime :: ArrivalTime, executionTime :: ExecutionTime, remainingTime:: RemainingTime } deriving (Show, Eq)
 type InputJobs = [Job]
 type Schedule = [Job]
 
@@ -36,20 +36,29 @@ runSJF = do putStr "\n\n*********STARTING SJF*********\n"
 -- Runs all jobs in SJF and create schedule of jobs - which job ran when
 sjf :: InputJobs -> CurrentTime -> Schedule
 sjf [] _ = []
-sjf jobs curTime = jobToRun { remaining = remaining jobToRun - jobRunTiming} : sjf restJobs (curTime + jobRunTiming)
-    where 
-        cursched = sjfScheduleOneJob jobs curTime
-        jobToRun = fst cursched
-        jobRunTiming = execution jobToRun
-        restJobs = snd cursched
+sjf jobs curTime = 
+    let 
+        -- Get the job that has to be run and the remaining list of jobs
+        (jobToRun, restJobs) = sjfScheduleOneJob jobs curTime
+        -- Note how long this job needs to complete
+        jobRunTime = executionTime jobToRun
+    in
+        -- Set the job to completed, add it to the result schedule
+        jobToRun { remainingTime = remainingTime jobToRun - jobRunTime } : sjf restJobs (curTime + jobRunTime)
 
 -- Return tuple of next job to run and rest of jobs (assumes always have >= 1 job to run at any time)
 sjfScheduleOneJob :: [Job] -> CurrentTime -> (Job, [Job])
-sjfScheduleOneJob jobs curTime = (nextJob, restJobs)
-     where
-        validJobs = filter (\job -> arrival job <= curTime) jobs
-        nextJob  = minimumBy (comparing execution) validJobs
+sjfScheduleOneJob jobs curTime =
+    let
+        -- Any job that arrives AFTER current time are invalid to schedule, since
+        -- they "don't exist" yet
+        validJobs = filter (\job -> arrivalTime job <= curTime) jobs
+        -- The next job to execute is the one with the smallest execution time
+        nextJob  = minimumBy (comparing executionTime) validJobs
+        -- Delete this picked job from the overall list of jobs
         restJobs = [ x | x <- jobs, x /= nextJob ] 
+    in 
+        (nextJob, restJobs)
 
 
 -- PRINTING / STATS FUNCTIONS
@@ -60,13 +69,11 @@ printSchedule [] curTime = putStr $ "Completion Time: " ++ show curTime ++ "\n"
 printSchedule schedule curTime = do putStr $ "Time: " ++ show curTime ++ " - job started execution, its state after execution is\n"
                                     print $ head schedule
                                     putStr "\n"
-                                    printSchedule (tail schedule) (curTime + (execution . head) schedule)
+                                    printSchedule (tail schedule) (curTime + (executionTime . head) schedule)
 
--- Won't work for SRTF in current form - adds the execution time of the job directly
+-- Won't work for SRTF in current form - adds the execution time of the job directly (what if pre-empted?)
 printAndGetTurnaround :: Schedule  -> CurrentTime -> Double -> IO Double
-printAndGetTurnaround [] curTime turnaround = do 
-                                                putStr $ "Completion Time: " ++ show curTime 
-                                                return turnaround
+printAndGetTurnaround [] curTime turnaround = putStr ("Completion Time: " ++ show curTime) >> return turnaround
 printAndGetTurnaround schedule curTime turnaround = 
     if jobIsCompleted 
         then do print jobToRun
@@ -76,6 +83,6 @@ printAndGetTurnaround schedule curTime turnaround =
         where 
               jobToRun = head schedule
               restJobs = tail schedule
-              jobRunTiming = execution jobToRun
-              jobIsCompleted = remaining jobToRun == 0
-              curTurnaround = curTime - arrival jobToRun + execution jobToRun
+              jobRunTiming = executionTime jobToRun
+              jobIsCompleted = remainingTime jobToRun == 0
+              curTurnaround = curTime - arrivalTime jobToRun + executionTime jobToRun
