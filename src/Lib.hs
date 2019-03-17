@@ -13,11 +13,14 @@ data Job = Job { name :: String, arrival :: ArrivalTime, execution :: ExecutionT
 type InputJobs = [Job]
 type Schedule = [Job]
 
+-- Change these settings to adjust the jobs and when the scheduler start running
 job1 = Job "1" 0 3 3
 job2 = Job "2" 1 2.5 2.5
 job3 = Job "3" 1 1 1
 job4 = Job "4" 2 3 3
 job5 = Job "5" 3 2 2
+jobs = [job1, job2, job3, job4, job5]
+startTime = 0 -- When the scheduler begins to run, offset in units from t = 0
 
 -- Runs and prints jobs in SJF order (only considers jobs that arrived before current time)
 runSJF :: IO ()
@@ -27,8 +30,7 @@ runSJF = do putStr "\n\n*********STARTING SJF*********\n"
             totalTurnaround <- printAndGetTurnaround schedule startTime startTurnaround
             putStrLn $ "\nTotal turnaround: " ++ show totalTurnaround
             putStrLn $ "\nAvg turnaround = " ++  show (totalTurnaround / fromIntegral (length schedule)) ++ "\n"
-            where schedule = sjf [job1, job2, job3, job4, job5] startTime
-                  startTime = 0
+            where schedule = sjf jobs startTime
                   startTurnaround = 0
 
 -- Runs all jobs in SJF and create schedule of jobs - which job ran when
@@ -50,7 +52,7 @@ sjfScheduleOneJob jobs curTime = (nextJob, restJobs)
         restJobs = [ x | x <- jobs, x /= nextJob ] 
 
 
--- PRINTING FUNCTIONS
+-- PRINTING / STATS FUNCTIONS
 
 -- Printing times when each job was run and its status after each run
 printSchedule :: Schedule  -> CurrentTime -> IO()
